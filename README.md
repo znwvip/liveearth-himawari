@@ -2,22 +2,23 @@
 
 过去 **48 小时**的 Himawari-8（向日葵 8 号）真彩色地球云图延时动画，云端自动采集合成 MP4，浏览器打开即看，本地不做任何保存。
 
-> 灵感来自 [LiveEarth-FY4B-Wallpaper](https://github.com/whuchenshuo/LiveEarth-FY4B-Wallpaper)，数据源从国产风云四号换成了海外可达性更好的日本 Himawari-8，输出从桌面壁纸改成了网页 MP4 动画。
+> 灵感来自 [LiveEarth-FY4B-Wallpaper](https://github.com/whuchenshuo/LiveEarth-FY4B-Wallpaper)，数据源换成了日本 Himawari-8，输出从桌面壁纸改成了网页 MP4 动画。
 
-## 它做什么
+## 架构
 
 ```
-GitHub Actions（每 10 分钟）
-  │ 下载 NICT Himawari-8 全盘图（4 个 tile 拼接 1100×1100）
-  │ 裁剪 16:9 → 缩放 720p → 叠北京时间水印
-  │ 上传单帧到 R2（frames/）
-  │ 清理 48h 前旧帧
-  │ 抽 48h 内每 30 分钟一帧 → ffmpeg 合成 MP4
+GitHub Actions（每 30 分钟）
+  │ 直接从 NICT 下载过去 48h 的 96 帧（每帧 4 tile 拼接）
+  │ 裁剪 16:9 → 720p → 北京时间水印
+  │ ffmpeg 合成 MP4（H.264, 6fps）
   ▼
-Cloudflare R2（存帧 + latest.mp4 + index.html）
+GitHub Pages（托管 index.html + latest.mp4）
   ▼
 浏览器（<video> 播放器，带播放控制）
 ```
+
+**零存储依赖**：NICT 自身保留 72h+ 历史数据，每次直接从它拉取，无需 R2 / 数据库。
+**零密钥**：只依赖 GitHub 内置 GITHUB_TOKEN，无需配置任何 secret，无需绑信用卡。
 
 ## 数据源
 
@@ -25,6 +26,7 @@ Cloudflare R2（存帧 + latest.mp4 + index.html）
 - **产品**：D531106 真彩色全盘图（True Color Reproduction）
 - **更新频率**：每 **10 分钟**
 - **提供方**：NICT（日本国立情报通信研究机构）
+- **历史保留**：至少 72 小时
 
 ```
 https://himawari8.nict.go.jp/img/D531106/{zoom}d/550/{Y}/{m}/{d}/{HHMMSS}_{x}_{y}.png
@@ -39,56 +41,24 @@ https://himawari8.nict.go.jp/img/D531106/{zoom}d/550/{Y}/{m}/{d}/{HHMMSS}_{x}_{y
 
 ⚠️ 版权：数据归 JMA / NICT，**禁止商用**，仅供个人使用。
 
-## 快速开始（3 步）
+## 快速开始（2 步）
 
-### 第 1 步：Cloudflare R2 建桶 + 开公开访问
+### 第 1 步：启用 GitHub Pages
 
-1. 登录 [Cloudflare](https://dash.cloudflare.com/) → 左侧 **R2**（没有就先开通，免费）
-2. 点 **Create bucket**，名字填 `liveearth-himawari`，区域选 **亚太（APAC）** 或 Auto
-3. 进入该 bucket → **Settings** → 找到 **Public access**（或 Domain Access）→
-   - 打开 **R2.dev subdomain** 开关（`Allow Access`）
-   - 记下你的公开域名，形如：`https://pub-xxxxxxxxxxxxxxxx.r2.dev`
-   - 记下你的 **Account ID**（Settings 页或账号首页能看到，32 位 hex）
+1. 打开仓库 **Settings → Pages**
+2. **Source** 选 `Deploy from a branch`
+3. **Branch** 选 `gh-pages` → `/ (root)` → 保存
+4. 记下网址：`https://znwvip.github.io/liveearth-himawari/`
 
-### 第 2 步：生成 R2 的 S3 凭证
+> 首次需要手动点这一次；之后 workflow 每次自动把最新动画推到这个分支。
 
-1. Cloudflare 左侧 **R2** → 右上 **Manage R2 API Tokens**
-2. **Create API token**
-   - Token name：`liveearth`
-   - Permissions：**Object Read & Write**
-   - 指定 bucket：选刚建的 `liveearth-himawari`
-3. 创建后复制 **Access Key ID** 和 **Secret Access Key**（Secret 只显示一次）
+### 第 2 步：手动触发一次
 
-### 第 3 步：填 GitHub Secrets
+1. 仓库 → **Actions** → 左侧 `collect-himawari` → **Run workflow**
+2. 等 3~5 分钟（下载 96 帧 + 合成 + 部署）
+3. 打开 `https://znwvip.github.io/liveearth-himawari/` 看动画
 
-1. 打开本仓库 → **Settings → Secrets and variables → Actions**
-2. 点 **New repository secret**，依次添加：
-
-| Name | 值 |
-|---|---|
-| `R2_ACCOUNT_ID` | 你的 Account ID |
-| `R2_ACCESS_KEY_ID` | 上面复制的 Access Key ID |
-| `R2_SECRET_ACCESS_KEY` | 上面复制的 Secret Access Key |
-| `R2_BUCKET` | `liveearth-himawari` |
-
-### 第 4 步：触发一次
-
-- 仓库 → **Actions** → 左侧 `collect-himawari` → **Run workflow** → 绿色按钮
-- 等 1~2 分钟跑完
-
-### 第 5 步：打开网页
-
-浏览器访问：
-
-```
-https://<你的 r2.dev 域名>/index.html
-```
-
-或直接看动画：
-
-```
-https://<你的 r2.dev 域名>/latest.mp4
-```
+> 之后每 30 分钟自动更新，你不用再管。
 
 ## 网页播放控制
 
@@ -103,7 +73,7 @@ https://<你的 r2.dev 域名>/latest.mp4
 
 ### 换分辨率（720p → 1080p）
 
-编辑 `.github/workflows/collect.yml` 里的 env：
+编辑 `.github/workflows/collect.yml` 的 env：
 
 ```yaml
 OUT_W: "1920"
@@ -113,7 +83,7 @@ ZOOM: "8"        # 1080p 建议用 8d（2200px）
 
 ### 改抽帧间隔 / 时间窗 / 帧率
 
-在 `collect.py` 顶部（也可用环境变量覆盖）：
+`collect.py` 顶部（也可用环境变量覆盖）：
 
 | 变量 | 默认 | 含义 |
 |---|---|---|
@@ -121,10 +91,11 @@ ZOOM: "8"        # 1080p 建议用 8d（2200px）
 | `FRAME_STEP_MIN` | 30 | MP4 抽帧间隔（分钟）|
 | `FPS` | 6 | MP4 帧率 |
 | `CRF` | 23 | H.264 质量（越小越清晰，文件越大）|
+| `MAX_WORKERS` | 8 | 并发下载线程数 |
 
 ### 改采集频率
 
-编辑 `collect.yml` 的 cron。当前 `*/10 * * * *` 表示每 10 分钟。
+编辑 `collect.yml` 的 cron。当前 `*/30 * * * *` 表示每 30 分钟。
 
 ## 目录结构
 
@@ -138,13 +109,15 @@ liveearth-himawari/
 
 ## 常见问题
 
-**动画还没出现 / 只有一两帧？** 首次运行需要先积累至少 2 帧。等 1 小时后再看，48 小时窗口填满后动画才完整。
+**第一次跑很慢？** 正常，要下载 96 帧。之后每次也差不多 3~5 分钟。
 
-**网页打不开？** 确认 R2 bucket 的 public access 已开启，且用 r2.dev 域名。
+**网页 404？** 确认 Settings → Pages 的 Source 已选 gh-pages 分支；第一次 workflow 跑完才会生成页面。
+
+**动画有几帧缺失？** NICT 偶有单帧 404，脚本会自动跳过该帧，不影响整体。
 
 **时间戳是 UTC 还是北京时？** 视频水印是北京时间（UTC+8）。
 
-**流量/成本？** R2 免费额度：10GB 存储 + 每月 1000 万次读 + egress 免费。本项目每天约几十 MB，远在免费额度内。
+**成本？** 全部免费：GitHub Actions（public 仓库无限分钟）+ Pages 托管，无需任何付费服务。
 
 ## 许可
 
