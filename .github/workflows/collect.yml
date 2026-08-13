@@ -35,8 +35,8 @@ jobs:
 
       - name: Collect & render
         env:
-          # 分辨率：今天 720p（ZOOM=4），以后升级 1080p 改 1920x1080 + ZOOM=8
-          OUT_W: "1280"
+          # 完整地球方形画布。今天 720，以后升级 1080 改 1080x1080 + ZOOM=8
+          OUT_W: "720"
           OUT_H: "720"
           ZOOM: "4"
         run: python collect.py

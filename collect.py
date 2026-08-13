@@ -4,8 +4,8 @@ LiveEarth — Himawari-8 云图动画（GitHub Pages 版）
 =================================================
 
 每 30 分钟跑一次（GitHub Actions cron）：
-  1. 从 NICT 直接下载过去 48h 内每 30 分钟一帧（每帧 4 个 tile 拼接）
-  2. 裁剪 16:9 → 缩放 720p → 叠北京时间水印
+  1. 从 NICT 直接下载过去 48h 内每 30 分钟一帧（每帧 16 个 tile 拼成完整地球）
+  2. 缩放 → 叠北京时间水印
   3. ffmpeg 合成 MP4（H.264, 6fps）
   4. 输出 index.html + latest.mp4 到 dist/，交给 GitHub Pages 部署
 
@@ -33,11 +33,11 @@ from PIL import Image, ImageDraw, ImageFont
 #  配置（均可用环境变量覆盖）
 # =====================================================================
 
-ZOOM = int(os.environ.get("ZOOM", "4"))          # 4d = 1100×1100；8d = 2200×2200
+ZOOM = int(os.environ.get("ZOOM", "4"))          # 4d = 4×4=16 tile = 2200×2200；8d = 8×8=64 tile = 4400×4400
 TILE = 550                                        # 单个 tile 边长（NICT 固定 550）
-GRID = {1: 1, 4: 2, 8: 4, 16: 8, 20: 20}.get(ZOOM, 2)
+GRID = {1: 1, 4: 4, 8: 8, 16: 16, 20: 20}.get(ZOOM, 4)  # level=每边 tile 数
 
-OUT_W = int(os.environ.get("OUT_W", "1280"))
+OUT_W = int(os.environ.get("OUT_W", "720"))      # 完整地球为方形画布
 OUT_H = int(os.environ.get("OUT_H", "720"))
 JPEG_QUALITY = int(os.environ.get("JPEG_QUALITY", "85"))
 
@@ -125,7 +125,7 @@ def load_font(size):
 
 
 def render_frame(slot, out_path):
-    """下载 4 tile → 拼接 → 裁剪 16:9 → 缩放 → 水印 → 存 JPEG。"""
+    """下载 GRID×GRID tile → 拼接完整地球 → 缩放 → 水印 → 存 JPEG。"""
     d = slot.strftime("%Y/%m/%d")
     t = slot.strftime("%H%M%S")
     year, month, day = slot.strftime("%Y"), slot.strftime("%m"), slot.strftime("%d")
@@ -145,13 +145,11 @@ def render_frame(slot, out_path):
     canvas = Image.new("RGB", (TILE * GRID, TILE * GRID))
     for x in range(GRID):
         for y in range(GRID):
-            canvas.paste(tiles[x][y], (y * TILE, x * TILE))
+            # NICT tile 命名 {x}_{y}：x=列(水平)，y=行(垂直)
+            canvas.paste(tiles[x][y], (x * TILE, y * TILE))
 
-    # 裁剪 16:9（取中央带，保留赤道云带）
-    w, h = canvas.size
-    crop_h = round(w * OUT_H / OUT_W)
-    top = max(0, (h - crop_h) // 2)
-    img = canvas.crop((0, top, w, top + crop_h)).resize((OUT_W, OUT_H), Image.LANCZOS)
+    # 完整地球圆盘：不裁剪，直接缩放到目标尺寸
+    img = canvas.resize((OUT_W, OUT_H), Image.LANCZOS)
 
     # 水印（北京时）
     beijing = slot + datetime.timedelta(hours=8)
