@@ -45,7 +45,7 @@ WINDOW_HOURS = int(os.environ.get("WINDOW_HOURS", "48"))
 FRAME_STEP_MIN = int(os.environ.get("FRAME_STEP_MIN", "30"))
 FPS = int(os.environ.get("FPS", "6"))
 CRF = os.environ.get("CRF", "23")
-MAX_WORKERS = int(os.environ.get("MAX_WORKERS", "8"))
+MAX_WORKERS = int(os.environ.get("MAX_WORKERS", "4"))
 
 URL_TEMPLATE = (
     "https://himawari8.nict.go.jp/img/D531106/{zoom}d/{tile}/"
@@ -185,8 +185,8 @@ def build_mp4(frame_paths, out_path):
 
     cmd = [
         "ffmpeg", "-y",
+        "-framerate", str(FPS),
         "-f", "concat", "-safe", "0", "-i", list_file,
-        "-vf", f"fps={FPS}",
         "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", CRF,
         "-movflags", "+faststart",
         out_path,
@@ -218,6 +218,7 @@ def main():
     # 并发渲染所有帧
     print(f"[render] downloading & rendering {len(slots)} frames ({MAX_WORKERS} workers)...")
     results = {}
+    errors = []
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as ex:
         futures = {}
         for i, slot in enumerate(slots):
@@ -231,6 +232,7 @@ def main():
                 i = idx_by_slot[slot]
                 results[slot] = os.path.join(tmp, f"{i:04d}_{slot.strftime('%Y%m%d_%H%M')}.jpg")
             except Exception as e:
+                errors.append((slot, str(e)))
                 print(f"    [warn] frame {slot.strftime('%Y%m%d %H:%M')} failed: {e}")
             done += 1
             if done % 16 == 0:
@@ -241,7 +243,9 @@ def main():
     print(f"[frames] {len(ok_paths)}/{len(slots)} succeeded")
 
     if len(ok_paths) < 2:
-        print("[FATAL] too few frames, abort")
+        print(f"[FATAL] too few frames ({len(ok_paths)}/{len(slots)}), abort")
+        for s, e in errors[:5]:
+            print(f"  sample error [{s.strftime('%Y-%m-%d %H:%M')}]: {e}")
         sys.exit(1)
 
     # 合成 MP4
