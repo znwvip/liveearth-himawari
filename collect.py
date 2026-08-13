@@ -177,16 +177,14 @@ def render_frame(slot, out_path):
 #  合成 MP4
 # =====================================================================
 
-def build_mp4(frame_paths, out_path):
-    list_file = os.path.join(os.path.dirname(out_path), "list.txt")
-    with open(list_file, "w") as f:
-        for p in frame_paths:
-            f.write(f"file '{p}'\n")
-
+def build_mp4(frame_dir, out_path):
+    # 用 image2 的 glob 模式读 frame_dir 下所有 jpg（文件名带 4 位编号前缀，字典序=时间序）
+    pattern = os.path.join(frame_dir, "*.jpg")
     cmd = [
         "ffmpeg", "-y",
         "-framerate", str(FPS),
-        "-f", "concat", "-safe", "0", "-i", list_file,
+        "-pattern_type", "glob",
+        "-i", pattern,
         "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", CRF,
         "-movflags", "+faststart",
         out_path,
@@ -250,7 +248,7 @@ def main():
 
     # 合成 MP4
     print("[mp4] building...")
-    build_mp4(ok_paths, "latest.mp4")
+    build_mp4(tmp, "latest.mp4")
     size = os.path.getsize("latest.mp4") / 1024 / 1024
     print(f"[mp4] latest.mp4 ({size:.2f} MB)")
 
