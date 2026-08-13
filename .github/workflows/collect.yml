@@ -28,9 +28,10 @@ jobs:
 
       - name: Install dependencies
         run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
           pip install pillow
           echo "--- ffmpeg ---"
-          ffmpeg -version 2>&1 | head -1 || echo "ffmpeg MISSING"
+          ffmpeg -version 2>&1 | head -1
 
       - name: Collect & render
         env:
