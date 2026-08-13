@@ -1,6 +1,6 @@
 # LiveEarth — Himawari-8 完整地球云图动画
 
-过去 **48 小时**的 Himawari-8（向日葵 8 号）真彩色**完整地球**延时动画。云端每 30 分钟自动下载、合成 MP4，浏览器打开即看，本地不做任何保存。
+过去 **70 小时**的 Himawari-8（向日葵 8 号）真彩色**完整地球**延时动画。云端每 30 分钟自动下载、合成 MP4，浏览器打开即看，本地不做任何保存。
 
 > 灵感来自 [LiveEarth-FY4B-Wallpaper](https://github.com/whuchenshuo/LiveEarth-FY4B-Wallpaper)，数据源换成日本 Himawari-8，输出从桌面壁纸改成了网页 MP4 动画。
 
@@ -8,7 +8,7 @@
 
 ```
 GitHub Actions（每 30 分钟）
-  │ 直接从 NICT 下载过去 48h 的 96 帧（每帧 16 个 tile 拼成完整地球）
+  │ 直接从 NICT 下载过去 70h 的 140 帧（每帧 16 个 tile 拼成完整地球）
   │ 缩放 → 叠北京时间水印
   │ ffmpeg 合成 MP4（H.264, 6fps）
   ▼
@@ -17,7 +17,7 @@ GitHub Pages（托管 index.html + latest.mp4）
 浏览器（<video> 播放器，带播放控制）
 ```
 
-**零存储依赖**：NICT 自身保留 72h+ 历史数据，每次直接从它拉取，无需 R2 / 数据库。
+**零存储依赖**：NICT 自身保留 72h+ 历史数据（本项目取 70h，留 2h 余量），无需 R2 / 数据库。
 **零密钥**：只依赖 GitHub 内置 GITHUB_TOKEN，无需配置任何 secret，无需绑信用卡。
 
 ## 数据源
@@ -58,7 +58,7 @@ https://himawari8.nict.go.jp/img/D531106/{level}d/550/{Y}/{m}/{d}/{HHMMSS}_{x}_{
 ### 第 2 步：手动触发一次
 
 1. 仓库 → **Actions** → `collect-himawari` → **Run workflow**
-2. 等 4~8 分钟（下载 96 帧 × 16 tile + 合成 + 部署）
+2. 等 5~10 分钟（下载 140 帧 × 16 tile + 合成 + 部署）
 3. 打开网页看动画
 
 > 之后每 30 分钟自动更新，无需再管。
@@ -84,13 +84,13 @@ OUT_H: "1080"
 ZOOM: "8"        # 1080 建议用 8d（4400×4400）
 ```
 
-### 改抽帧间隔 / 时间窗 / 帧率
+### 改时间窗 / 抽帧间隔 / 帧率
 
 `collect.py` 顶部（也可用环境变量覆盖）：
 
 | 变量 | 默认 | 含义 |
 |---|---|---|
-| `WINDOW_HOURS` | 48 | 动画时间窗 |
+| `WINDOW_HOURS` | 70 | 动画时间窗（小时）|
 | `FRAME_STEP_MIN` | 30 | MP4 抽帧间隔（分钟）|
 | `FPS` | 6 | MP4 帧率 |
 | `CRF` | 23 | H.264 质量（越小越清晰，文件越大）|
@@ -112,7 +112,7 @@ liveearth-himawari/
 
 ## 常见问题
 
-**第一次跑很慢？** 正常，要下载 96 帧 × 16 tile。每次约 4~8 分钟。
+**第一次跑很慢？** 正常，要下载 140 帧 × 16 tile。每次约 5~10 分钟。
 
 **网页 404？** 确认 Settings → Pages 的 Source 已选 gh-pages 分支；且 workflow 至少跑成功过一次。
 

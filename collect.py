@@ -4,7 +4,7 @@ LiveEarth — Himawari-8 云图动画（GitHub Pages 版）
 =================================================
 
 每 30 分钟跑一次（GitHub Actions cron）：
-  1. 从 NICT 直接下载过去 48h 内每 30 分钟一帧（每帧 16 个 tile 拼成完整地球）
+  1. 从 NICT 直接下载过去 70h 内每 30 分钟一帧（每帧 16 个 tile 拼成完整地球）
   2. 缩放 → 叠北京时间水印
   3. ffmpeg 合成 MP4（H.264, 6fps）
   4. 输出 index.html + latest.mp4 到 dist/，交给 GitHub Pages 部署
@@ -41,7 +41,7 @@ OUT_W = int(os.environ.get("OUT_W", "720"))      # 完整地球为方形画布
 OUT_H = int(os.environ.get("OUT_H", "720"))
 JPEG_QUALITY = int(os.environ.get("JPEG_QUALITY", "85"))
 
-WINDOW_HOURS = int(os.environ.get("WINDOW_HOURS", "48"))
+WINDOW_HOURS = int(os.environ.get("WINDOW_HOURS", "70"))   # 动画时间窗（NICT 保留 72h，留 2h 余量）
 FRAME_STEP_MIN = int(os.environ.get("FRAME_STEP_MIN", "30"))
 FPS = int(os.environ.get("FPS", "6"))
 CRF = os.environ.get("CRF", "23")
@@ -94,7 +94,7 @@ def fetch(url, timeout=30, retries=3):
 # =====================================================================
 
 def build_slots():
-    """生成 48h 内每 FRAME_STEP_MIN 分钟一个的 UTC 时间点（时间正序）。"""
+    """生成 WINDOW_HOURS 内每 FRAME_STEP_MIN 分钟一个的 UTC 时间点（时间正序）。"""
     now = datetime.datetime.now(datetime.timezone.utc)
     latest = now.replace(second=0, microsecond=0)
     latest -= datetime.timedelta(minutes=latest.minute % 10)   # 对齐 10 分钟
