@@ -306,14 +306,18 @@ def main():
     # 5) 合成 MP4
     os.makedirs(DIST_DIR, exist_ok=True)
     mp4_path = os.path.join(DIST_DIR, "fy4.mp4")
-    if build_mp4(kept, mp4_path):
-        # 6) 复制页面
-        idx_src = os.path.join(os.path.dirname(os.path.abspath(__file__)), "web", "index2.html")
-        if os.path.exists(idx_src):
-            shutil.copy(idx_src, os.path.join(DIST_DIR, "index2.html"))
-            print(f"[dist] index2.html + fy4.mp4 ready")
-        else:
-            print("[warn] web/index2.html not found, skipping page copy")
+    mp4_ok = build_mp4(kept, mp4_path)
+
+    # 6) 复制页面（无论视频是否就绪都部署，页面可先存在）
+    idx_src = os.path.join(os.path.dirname(os.path.abspath(__file__)), "web", "index2.html")
+    if os.path.exists(idx_src):
+        shutil.copy(idx_src, os.path.join(DIST_DIR, "index2.html"))
+        print("[dist] index2.html copied")
+
+    if mp4_ok:
+        print(f"[dist] fy4.mp4 ready ({os.path.getsize(mp4_path)/1024/1024:.2f} MB)")
+    else:
+        print("[dist] no fy4.mp4 yet (need >=2 frames; accumulating)")
 
     print(f"[done] elapsed {time.time() - t0:.1f}s")
 
