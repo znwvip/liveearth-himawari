@@ -14,6 +14,9 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # ──────────────────────────────────────────────────────────────
+  # Job 1: Himawari-8（日本向日葵 8 号）— 原有逻辑，不动
+  # ──────────────────────────────────────────────────────────────
   collect:
     runs-on: ubuntu-latest
     timeout-minutes: 25
@@ -33,13 +36,95 @@ jobs:
           echo "--- ffmpeg ---"
           ffmpeg -version 2>&1 | head -1
 
-      - name: Collect & render
+      - name: Collect & render (Himawari-8)
         env:
-          # 完整地球方形画布。今天 720，以后升级 1080 改 1080x1080 + ZOOM=8
+          # 分辨率：完整地球方形画布。今天 720，以后升级 1080 改 1080x1080 + ZOOM=8
           OUT_W: "720"
           OUT_H: "720"
           ZOOM: "4"
         run: python collect.py
+
+      - name: Upload Himawari dist artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-himawari
+          path: ./dist
+          if-no-files-found: error
+          retention-days: 1
+
+  # ──────────────────────────────────────────────────────────────
+  # Job 2: FY-4B（中国风云四号 B 星）— 增量采集（NSMC 无历史帧 URL）
+  # 帧存 GitHub Actions cache，每 30 分钟抓一帧，积累 70h 动画
+  # ──────────────────────────────────────────────────────────────
+  collect-fy4:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+          pip install pillow
+          echo "--- ffmpeg ---"
+          ffmpeg -version 2>&1 | head -1
+
+      - name: Restore FY-4B frames cache
+        uses: actions/cache@v4
+        with:
+          path: frames/fy4
+          key: fy4-frames-v1
+
+      - name: Collect & render (FY-4B)
+        env:
+          OUT_W: "720"
+          OUT_H: "720"
+          WINDOW_HOURS: "70"
+          FRAME_STEP_MIN: "30"
+        run: python collect_fy4.py
+
+      - name: Upload FY-4B dist artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-fy4
+          path: ./dist
+          if-no-files-found: error
+          retention-days: 1
+
+  # ──────────────────────────────────────────────────────────────
+  # Job 3: 合并两个 dist 并部署 GitHub Pages
+  # index.html + latest.mp4（Himawari）+ index2.html + fy4.mp4（风云）
+  # ──────────────────────────────────────────────────────────────
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [collect, collect-fy4]
+    timeout-minutes: 10
+    steps:
+      - name: Download Himawari dist
+        uses: actions/download-artifact@v4
+        with:
+          name: dist-himawari
+          path: ./dist-himawari
+
+      - name: Download FY-4B dist
+        uses: actions/download-artifact@v4
+        with:
+          name: dist-fy4
+          path: ./dist-fy4
+
+      - name: Merge dists
+        run: |
+          mkdir -p ./dist
+          cp -r ./dist-himawari/* ./dist/
+          cp -r ./dist-fy4/* ./dist/
+          echo "--- merged dist ---"
+          ls -la ./dist
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
