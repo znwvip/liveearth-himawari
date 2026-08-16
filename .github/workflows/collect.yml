@@ -80,6 +80,8 @@ jobs:
         with:
           path: frames/fy4
           key: fy4-frames-v1
+          # 必须强制保存：缓存命中时默认不写回，帧会永远停留在初始数量
+          save-always: true
 
       - name: Collect & render (FY-4B)
         env:
