@@ -76,12 +76,11 @@ jobs:
           ffmpeg -version 2>&1 | head -1
 
       - name: Restore FY-4B frames cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: frames/fy4
           key: fy4-frames-v1
-          # 必须强制保存：缓存命中时默认不写回，帧会永远停留在初始数量
-          save-always: true
+          # 用 restore/save 分离步骤（actions/cache 的 save-always 已废弃不生效）
 
       - name: Collect & render (FY-4B)
         env:
@@ -98,6 +97,14 @@ jobs:
           path: ./dist
           if-no-files-found: warn
           retention-days: 1
+
+      # 独立保存步骤：无论缓存是否命中都写回（restore/save 分离，
+      # actions/cache 的 save-always 已废弃不生效）
+      - name: Save FY-4B frames cache
+        uses: actions/cache/save@v4
+        with:
+          path: frames/fy4
+          key: fy4-frames-v1
 
   # ──────────────────────────────────────────────────────────────
   # Job 3: 合并两个 dist 并部署 GitHub Pages
