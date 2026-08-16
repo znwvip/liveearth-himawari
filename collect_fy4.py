@@ -323,4 +323,10 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as e:
+        import traceback
+        print("\n[FATAL] collect_fy4.py crashed:", file=sys.stderr)
+        traceback.print_exc()
+        sys.exit(1)
