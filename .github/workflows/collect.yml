@@ -79,8 +79,11 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: frames/fy4
-          key: fy4-frames-v1
-          # 用 restore/save 分离步骤（actions/cache 的 save-always 已废弃不生效）
+          # 每次运行用独立 key（时间戳）保存，避免并行 run 争抢同一 key；
+          # restore 用前缀匹配最近一次成功的保存
+          key: fy4-frames-${{ github.run_id }}
+          restore-keys: |
+            fy4-frames-
 
       - name: Collect & render (FY-4B)
         env:
@@ -98,13 +101,13 @@ jobs:
           if-no-files-found: warn
           retention-days: 1
 
-      # 独立保存步骤：无论缓存是否命中都写回（restore/save 分离，
-      # actions/cache 的 save-always 已废弃不生效）
+      # 独立保存步骤：每次运行用独立 key（run_id）保存，避免并行 run 争抢；
+      # 缓存会累积（旧 key 的缓存由 GitHub 按 LRU 清理，10GB 免费额度足够）
       - name: Save FY-4B frames cache
         uses: actions/cache/save@v4
         with:
           path: frames/fy4
-          key: fy4-frames-v1
+          key: fy4-frames-${{ github.run_id }}
 
   # ──────────────────────────────────────────────────────────────
   # Job 3: 合并两个 dist 并部署 GitHub Pages
