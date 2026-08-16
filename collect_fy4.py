@@ -238,20 +238,18 @@ def dedupe(kept, capture):
 # =====================================================================
 
 def build_mp4(frame_paths, out_path):
-    """按时间序合成 MP4（用文件列表而非 glob，保证严格时间序）。"""
+    """按时间序合成 MP4。帧文件名 YYYYMMDD_HHMM.jpg 字典序=时间序，
+    用 image2 demuxer + glob（与 Himawari collect.py 同一可靠方式）。
+    """
     if len(frame_paths) < 2:
         print(f"    [warn] only {len(frame_paths)} frames, need >=2 to build mp4")
         return False
-    list_file = os.path.join(os.path.dirname(out_path), "fy4_frames.txt")
-    with open(list_file, "w") as f:
-        for p in frame_paths:
-            # ffmpeg concat demuxer: 每行 file '<path>'，路径原样写入（无 shell 层，无需转义）
-            f.write(f"file '{os.path.abspath(p)}'\n")
+    pattern = os.path.join(os.path.abspath(FRAMES_DIR), "*.jpg")
     cmd = [
         "ffmpeg", "-y",
-        "-framerate", str(FPS),          # 输入选项：必须在 -i 之前
-        "-f", "concat", "-safe", "0",
-        "-i", list_file,
+        "-framerate", str(FPS),
+        "-pattern_type", "glob",
+        "-i", pattern,
         "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", CRF,
         "-movflags", "+faststart",
         out_path,
