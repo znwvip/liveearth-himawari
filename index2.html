@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LiveEarth — FY-4B 云图动画</title>
+<style>
+  :root {
+    --bg: #0b0f14;
+    --fg: #e6edf3;
+    --muted: #8b98a5;
+    --accent: #4da3ff;
+    --panel: #121820;
+    --border: #1f2937;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    height: 100%;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", Roboto, sans-serif;
+  }
+  body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+    gap: 16px;
+  }
+  header { text-align: center; }
+  header h1 {
+    font-size: 1.4rem;
+    font-weight: 600;
+    margin: 0 0 4px;
+    letter-spacing: .5px;
+  }
+  header .sub {
+    color: var(--muted);
+    font-size: .85rem;
+  }
+  header .updated { color: var(--accent); }
+
+  .stage {
+    width: min(100%, 1200px);
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 12px;
+    box-shadow: 0 10px 40px rgba(0,0,0,.5);
+  }
+  video {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: 8px;
+    background: #000;
+    aspect-ratio: 1 / 1;
+    object-fit: contain;
+  }
+
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    justify-content: center;
+    margin-top: 4px;
+  }
+  .controls button {
+    background: var(--panel);
+    color: var(--fg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: .9rem;
+    cursor: pointer;
+    transition: .15s;
+  }
+  .controls button:hover { border-color: var(--accent); }
+  .controls button.active { background: var(--accent); color: #06121f; border-color: var(--accent); }
+  .controls .group { display: flex; gap: 6px; }
+
+  footer {
+    color: var(--muted);
+    font-size: .8rem;
+    text-align: center;
+    max-width: 720px;
+    line-height: 1.6;
+  }
+  footer a { color: var(--accent); text-decoration: none; }
+</style>
+</head>
+<body>
+  <header>
+    <h1>🛰️ LiveEarth — FY-4B 云图动画</h1>
+    <div class="sub">
+      过去 70 小时 · 每 30 分钟一帧 · 数据源：中国风云四号 B 星（NSMC）·
+      <span class="updated" id="updated">读取更新时间…</span>
+    </div>
+  </header>
+
+  <div class="stage">
+    <video id="video" controls autoplay muted loop playsinline preload="metadata" src="fy4.mp4"></video>
+    <div class="controls">
+      <div class="group">
+        <button data-speed="0.5">0.5×</button>
+        <button data-speed="1" class="active">1×</button>
+        <button data-speed="2">2×</button>
+        <button data-speed="4">4×</button>
+      </div>
+      <button id="loop" class="active">🔁 循环</button>
+      <button id="fullscreen">⛶ 全屏</button>
+    </div>
+  </div>
+
+  <footer>
+    真彩色全盘图每 <strong>15 分钟</strong>由 FY-4B 卫星观测，本页面动画由云端定时采集并合成 MP4 后自动刷新。
+    视频右下角时间戳为北京时间。数据版权归中国气象局 / NSMC，仅供个人使用。
+    <br>数据源：<a href="https://www.nsmc.org.cn/" target="_blank">国家卫星气象中心 NSMC</a>
+  </footer>
+
+<script>
+  const video = document.getElementById('video');
+
+  // 倍速
+  document.querySelectorAll('[data-speed]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const s = parseFloat(btn.dataset.speed);
+      video.playbackRate = s;
+      document.querySelectorAll('[data-speed]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+  });
+
+  // 循环
+  const loopBtn = document.getElementById('loop');
+  loopBtn.addEventListener('click', () => {
+    video.loop = !video.loop;
+    loopBtn.classList.toggle('active', video.loop);
+  });
+
+  // 全屏
+  document.getElementById('fullscreen').addEventListener('click', () => {
+    if (document.fullscreenElement) document.exitFullscreen();
+    else video.requestFullscreen?.();
+  });
+
+  // 键盘：空格播放/暂停，←→ 快退快进
+  document.addEventListener('keydown', (e) => {
+    if (e.target.tagName === 'BUTTON') return;
+    if (e.code === 'Space') { e.preventDefault(); video.paused ? video.play() : video.pause(); }
+    else if (e.code === 'ArrowLeft') video.currentTime = Math.max(0, video.currentTime - 5);
+    else if (e.code === 'ArrowRight') video.currentTime = Math.min(video.duration || 1e9, video.currentTime + 5);
+  });
+
+  // 读取 fy4.mp4 的最后修改时间
+  fetch('fy4.mp4', { method: 'HEAD', cache: 'no-store' })
+    .then(r => r.headers.get('Last-Modified'))
+    .then(lm => {
+      if (lm) {
+        const d = new Date(lm);
+        document.getElementById('updated').textContent =
+          '最后更新：' + d.toLocaleString('zh-CN', { hour12: false, timeZone: 'Asia/Shanghai' }) + '（北京时）';
+      } else {
+        document.getElementById('updated').textContent = '更新时间未知';
+      }
+    })
+    .catch(() => {
+      document.getElementById('updated').textContent = '更新时间未知';
+    });
+</script>
+</body>
+</html>
